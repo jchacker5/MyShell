@@ -1,3 +1,6 @@
+// Purpose: This program is a simple shell that can execute commands.
+// author: Joseph Defendre 
+// date: 9/15/2023
 
 import java.io.*;
 import java.nio.file.*;
