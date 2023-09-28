@@ -151,7 +151,7 @@ public class MyShell {
             int index = 1;
             for (String command : MyShell.commandHistory) {
                 System.out.println(index + " " + command);
-
+                index++;
             }
         }
 
@@ -199,7 +199,7 @@ public class MyShell {
             }
             int commandNumber = Integer.parseInt(cmdPlusArgs[1]);
             if (commandNumber <= 0 || commandNumber > MyShell.commandHistory.size()) {
-                System.out.println("Invalid command number");
+                System.out.println("Command index out of range");
                 return;
             }
             String commandToExecute = MyShell.commandHistory.get(commandNumber - 1);
