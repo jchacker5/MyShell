@@ -193,11 +193,12 @@ public class MyShell {
 
         private void executeHistoryCommand() {
             // Here, the code executes a command from the history
-            if (cmdPlusArgs.length < 2) {
+            if (cmdPlusArgs.length < 1) {
                 System.out.println("Missing command number");
                 return;
             }
-            int commandNumber = Integer.parseInt(cmdPlusArgs[1]);
+            String commandNumberString = cmdPlusArgs[0].substring(1);
+            int commandNumber = Integer.parseInt(commandNumberString);
             if (commandNumber <= 0 || commandNumber > MyShell.commandHistory.size()) {
                 System.out.println("Command index out of range");
                 return;
