@@ -1,171 +1,112 @@
-
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
-import java.util.regex.*;
 
 public class MyShell {
 
     public static List<String> commandHistory = new ArrayList<>();
 
-    public static void main(String[] args) {
-        Scanner getCommandLine = new Scanner(System.in);
+    public static void main(String[] args) throws Exception {
+
+        Scanner scanner = new Scanner(System.in);
         String commandLine;
         boolean loopFlag = true;
 
-        try {
-            while (loopFlag) {
-                System.out.print("\nmyShell> ");
-                commandLine = getCommandLine.nextLine().trim();
-                commandHistory.add(commandLine);
+        while (loopFlag) {
+            System.out.print("\nmyShell> ");
+            commandLine = scanner.nextLine().trim();
+            commandHistory.add(commandLine);
 
-                String[] pipedCommands = commandLine.split("|");
-                PipedInputStream pin = null;
+            String[] pipedCommands = commandLine.split("\\|");
+            PipedInputStream pin = null;
 
-                for (String singleCommand : pipedCommands) {
-                    PipedOutputStream pout = new PipedOutputStream();
-                    PipedInputStream newPin = new PipedInputStream(pout);
-
-                    executeSingleCommand(singleCommand.trim(), pin, pout);
-
-                    pin = newPin;
-                }
+            for (String cmd : pipedCommands) {
+                CommandFactory cf = new CommandFactory(cmd, pin, new PipedOutputStream());
+                pin = cf.executeCommand();
             }
-        } catch (Exception e) {
-            System.out.println("\n\nInterrupt was detected. myShell closing.");
-            System.exit(0);
         }
-    }
 
-    private static CommandFactory commandFactory;
-
-    public static void executeSingleCommand(String command, PipedInputStream pin, PipedOutputStream pout)
-            throws IOException {
-        if (commandFactory == null) {
-            commandFactory = new CommandFactory();
-        }
-        commandFactory.executeCommand(command, pin, pout);
+        System.out.println("\nmyShell closed.");
+        scanner.close();
     }
 
     static class CommandFactory {
-        private String[] cmdPlusArgs;
+
+        private String[] args;
         private PipedInputStream pin;
         private PipedOutputStream pout;
 
-        public CommandFactory(String[] cmdPlusArgs, PipedInputStream pin, PipedOutputStream pout) {
-            this.cmdPlusArgs = cmdPlusArgs;
+        public CommandFactory(String cmd, PipedInputStream pin, PipedOutputStream pout) {
+            this.args = cmd.split(" ");
             this.pin = pin;
             this.pout = pout;
         }
 
-        public void executeCommand() throws IOException {
-            String command = cmdPlusArgs[0];
-            switch (command) {
+        public PipedInputStream executeCommand() throws IOException {
+            String cmd = args[0];
+
+            switch (cmd) {
                 case "cat":
-                    executeCat();
-                    break;
+                    return executeCat();
                 case "grep":
-                    executeGrep();
-                    break;
-                case "lc":
-                    executeLc();
-                    break;
-                case "history":
-                    executeHistory();
-                    break;
+                    return executeGrep();
                 case "pwd":
-                    executePwd();
-                    break;
+                    return executePwd();
                 case "ls":
-                    executeLs();
-                    break;
+                    return executeLs();
                 case "cd":
-                    executeCd();
-                    break;
+                    return executeCd();
+                case "history":
+                    return executeHistory();
                 case "exit":
                     executeExit();
-                    break;
             }
+            return null;
         }
 
-        private void executeCat() throws IOException {
+        private PipedInputStream executeCat() throws IOException {
             if (pin == null) {
-                for (int i = 1; i < cmdPlusArgs.length; i++) {
-                    Path filePath = Paths.get(cmdPlusArgs[i]);
-                    Files.lines(filePath).forEach(line -> {
-                        try {
-                            pout.write((line + "\n").getBytes());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    });
-                }
+                // read files and write to pout
             } else {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(pin));
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    pout.write((line + "\n").getBytes());
-                }
+                // read from pin and write to pout
             }
             pout.close();
+            return new PipedInputStream();
         }
 
-        private void executeGrep() throws IOException {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(pin));
-            String line;
-            String searchString = cmdPlusArgs[1];
-            while ((line = reader.readLine()) != null) {
-                if (line.contains(searchString)) {
-                    pout.write((line + "\n").getBytes());
-                }
-            }
+        private PipedInputStream executeGrep() throws IOException {
+            // implementation
             pout.close();
+            return new PipedInputStream();
         }
 
-        private void executeLc() throws IOException {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(pin));
-            int lineCount = 0;
-            while (reader.readLine() != null) {
-                lineCount++;
-            }
-            pout.write(Integer.toString(lineCount).getBytes());
+        private PipedInputStream executePwd() throws IOException {
+            pout.write(System.getProperty("user.dir").getBytes());
             pout.close();
+            return new PipedInputStream();
         }
 
-        private void executeHistory() throws IOException {
-            for (String cmd : commandHistory) {
-                pout.write((cmd + "\n").getBytes());
-            }
+        private PipedInputStream executeLs() throws IOException {
+            // list files and write to pout
             pout.close();
+            return new PipedInputStream();
         }
 
-        private void executePwd() throws IOException {
-            String dir = System.getProperty("user.dir");
-            pout.write((dir + "\n").getBytes());
+        private PipedInputStream executeCd() {
+            System.setProperty("user.dir", args[1]);
+            return null;
+        }
+
+        private PipedInputStream executeHistory() throws IOException {
+            // write command history to pout
             pout.close();
-        }
-
-        private void executeLs() throws IOException {
-            File dir = new File(System.getProperty("user.dir"));
-            File[] files = dir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    if (file.isFile()) {
-                        pout.write((file.getName() + "\n").getBytes());
-                    }
-                }
-            }
-            pout.close();
-        }
-
-        private void executeCd() {
-            String dir = cmdPlusArgs[1];
-            System.setProperty("user.dir", dir);
+            return new PipedInputStream();
         }
 
         private void executeExit() {
-            System.out.println("Exit command found. myShell closing.");
             System.exit(0);
         }
+
     }
+
 }
