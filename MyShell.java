@@ -48,14 +48,17 @@ public class MyShell {
                 PipedInputStream pin = null;
                 PipedOutputStream pout = null;
                 PipedInputStream newPin = null;
+                int i = 0; // Counter for the current command
 
                 // Execute each command
                 for (String cmd : commands) {
                     cmd = cmd.trim();
+                    boolean isLastCommand = (i == commands.length - 1);
                     pout = new PipedOutputStream();
                     newPin = new PipedInputStream(pout);
                     try {
-                        executeCommand(cmd, pin, pout);
+                        boolean isPiped = commands.length > 1;
+                        executeCommand(cmd, pin, pout, isPiped, isLastCommand);
                     } catch (Exception e) {
                         System.out.println("Error while executing command: " + e.getMessage());
                     } finally {
@@ -79,7 +82,9 @@ public class MyShell {
     }
 
     // Method to execute a command
-    private static void executeCommand(String cmd, PipedInputStream pin, PipedOutputStream pout) throws IOException {
+    private static void executeCommand(String cmd, PipedInputStream pin, PipedOutputStream pout, boolean isPiped,
+            boolean isLastCommand)
+            throws IOException {
         // Split command and arguments
         String[] parts = cmd.split("\\s+");
         String command = parts[0];
@@ -87,16 +92,16 @@ public class MyShell {
         // Determine which command to execute
         switch (command) {
             case "ls":
-                ls(pout);
+                ls(pout, isPiped);
                 break;
             case "cd":
                 cd(parts, pout);
                 break;
             case "cat":
-                cat(parts, pin, pout);
+                cat(parts, pin, pout, isPiped);
                 break;
             case "grep":
-                grep(parts, pin, pout);
+                grep(parts, pin, pout, isPiped);
                 break;
             case "lc":
                 lc(pin, pout);
@@ -110,20 +115,29 @@ public class MyShell {
             default:
                 System.out.println("Unknown command: " + command);
         }
+
+        // Close the PipedInputStream if the command is part of a pipe and it is not the
+        // last command in the pipe.
+        if (pin != null && !isPiped) {
+            pin.close();
+        }
     }
 
     // Implement 'ls' command
-    private static void ls(PipedOutputStream pout) throws IOException {
+    private static void ls(PipedOutputStream pout, boolean isPiped) throws IOException {
         File directory = new File(currentDirectory);
         if (directory.exists() && directory.isDirectory()) {
             String[] files = directory.list();
             if (files != null) {
                 for (String file : files) {
-                    System.out.println(file); // Debug: Directly output to console
+                    if (!isPiped) {
+                        System.out.println(file); // Output to console only if not part of a pipe
+                    }
                     pout.write((file + "\n").getBytes());
                 }
             }
         }
+        pout.close();
     }
 
     // Implement 'cd' command
@@ -145,7 +159,8 @@ public class MyShell {
     }
 
     // Implement 'cat' command
-    private static void cat(String[] parts, PipedInputStream pin, PipedOutputStream pout) throws IOException {
+    private static void cat(String[] parts, PipedInputStream pin, PipedOutputStream pout, boolean isPiped)
+            throws IOException {
         for (int i = 1; i < parts.length; i++) {
             String fileName = parts[i];
             File fileToRead = new File(currentDirectory, fileName);
@@ -153,7 +168,9 @@ public class MyShell {
                 BufferedReader br = new BufferedReader(new FileReader(fileToRead));
                 String line;
                 while ((line = br.readLine()) != null) {
-                    System.out.println(line); // Debug: Directly output to console
+                    if (!isPiped) {
+                        System.out.println(line); // Output to console only if not part of a pipe
+                    }
                     pout.write((line + "\n").getBytes());
                 }
                 br.close();
@@ -162,42 +179,54 @@ public class MyShell {
                 return; // Exit the current 'cat' command and go back to the main loop
             }
         }
+        pout.close();
     }
 
     // Implement 'grep' command
-    private static void grep(String[] parts, PipedInputStream pin, PipedOutputStream pout) throws IOException {
+    private static void grep(String[] parts, PipedInputStream pin, PipedOutputStream pout, boolean isPiped)
+            throws IOException {
         if (parts.length > 1) {
             String searchString = parts[1];
             BufferedReader br = new BufferedReader(new InputStreamReader(pin));
             String line;
             while ((line = br.readLine()) != null) {
-                if (line.toLowerCase().contains(searchString.toLowerCase())) {
-                    System.out.println(line); // Debug: Directly output to console
+                if (line.contains(searchString)) {
+                    if (!isPiped) {
+                        System.out.println(line); // Only print to console if not part of a pipeline
+                    }
                     pout.write((line + "\n").getBytes());
                 }
             }
         }
+        pout.close(); // Close the output stream after completing the command
     }
 
     // Implement 'lc' command
     private static void lc(PipedInputStream pin, PipedOutputStream pout) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(pin));
         int lineCount = 0;
-        while (br.readLine() != null) {
+        while ((br.readLine()) != null) {
             lineCount++;
         }
-        pout.write(Integer.toString(lineCount).getBytes());
+        System.out.println(lineCount); // Output the line count to the console
+        pout.write((Integer.toString(lineCount) + "\n").getBytes());
+        pout.close();
     }
 
     // Implement 'pwd' command
     private static void pwd(PipedOutputStream pout) throws IOException {
-        pout.write(currentDirectory.getBytes());
+        String currentDir = currentDirectory + System.getProperty("line.separator");
+        pout.write(currentDir.getBytes());
+        pout.close();
     }
 
     // Implement 'history' command
     private static void history(PipedOutputStream pout) throws IOException {
         for (int i = 0; i < history.size(); i++) {
-            pout.write((i + 1 + " " + history.get(i) + "\n").getBytes());
+            String histLine = (i + 1 + " " + history.get(i) + "\n");
+            System.out.println(histLine.trim()); // Output to console
+            pout.write(histLine.getBytes());
         }
+        pout.close();
     }
 }
