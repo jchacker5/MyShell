@@ -121,6 +121,12 @@ public class MyShell {
         if (pin != null && !isPiped) {
             pin.close();
         }
+
+        // Close the PipedOutputStream if the command is not the last command in the
+        // pipe.
+        if (pout != null && !isLastCommand) {
+            pout.close();
+        }
     }
 
     // Implement 'ls' command
@@ -137,7 +143,7 @@ public class MyShell {
                 }
             }
         }
-        pout.close();
+        pout.flush();
     }
 
     // Implement 'cd' command
@@ -166,20 +172,23 @@ public class MyShell {
             File fileToRead = new File(currentDirectory, fileName);
             try {
                 BufferedReader br = new BufferedReader(new FileReader(fileToRead));
+                StringBuilder fileContents = new StringBuilder();
                 String line;
                 while ((line = br.readLine()) != null) {
-                    if (!isPiped) {
-                        System.out.println(line); // Output to console only if not part of a pipe
-                    }
-                    pout.write((line + "\n").getBytes());
+                    fileContents.append(line).append("\n");
                 }
                 br.close();
+                String contents = fileContents.toString();
+                if (!isPiped) {
+                    System.out.print(contents); // Output to console only if not part of a pipe
+                }
+                pout.write(contents.getBytes());
             } catch (FileNotFoundException e) {
                 System.out.println("File not found: " + fileName);
                 return; // Exit the current 'cat' command and go back to the main loop
             }
         }
-        pout.close();
+        pout.flush();
     }
 
     // Implement 'grep' command
@@ -189,16 +198,25 @@ public class MyShell {
             String searchString = parts[1];
             BufferedReader br = new BufferedReader(new InputStreamReader(pin));
             String line;
+            boolean searchTermFound = false;
             while ((line = br.readLine()) != null) {
                 if (line.contains(searchString)) {
                     if (!isPiped) {
                         System.out.println(line); // Only print to console if not part of a pipeline
                     }
                     pout.write((line + "\n").getBytes());
+                    System.out.println("Line containing search term found: " + line); // Output message when line is
+                                                                                      // found
+                    searchTermFound = true;
                 }
             }
+            if (!searchTermFound) {
+                String message = "Search term not found: " + searchString;
+                System.out.println(message);
+                pout.write((message + "\n").getBytes());
+            }
         }
-        pout.close(); // Close the output stream after completing the command
+        pout.flush(); // Close the output stream after completing the command
     }
 
     // Implement 'lc' command
@@ -210,14 +228,15 @@ public class MyShell {
         }
         System.out.println(lineCount); // Output the line count to the console
         pout.write((Integer.toString(lineCount) + "\n").getBytes());
-        pout.close();
+        pout.flush();
     }
 
     // Implement 'pwd' command
     private static void pwd(PipedOutputStream pout) throws IOException {
-        String currentDir = currentDirectory + System.getProperty("line.separator");
+        String currentDir = currentDirectory + System.getProperty("file.separator");
+        System.out.println(currentDir); // Output to console
         pout.write(currentDir.getBytes());
-        pout.close();
+        pout.flush();
     }
 
     // Implement 'history' command
@@ -227,6 +246,6 @@ public class MyShell {
             System.out.println(histLine.trim()); // Output to console
             pout.write(histLine.getBytes());
         }
-        pout.close();
+        pout.flush();
     }
 }
