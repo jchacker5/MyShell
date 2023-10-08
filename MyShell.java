@@ -7,6 +7,8 @@ public class MyShell {
     private static String currentDirectory = System.getProperty("user.dir").trim();
 
     public static void main(String[] args) {
+        // Display welcome message
+        printWelcomeMessage();
         // Initialize scanner for command input
         Scanner getCommandLine = new Scanner(System.in);
         boolean loopFlag = true;
@@ -217,8 +219,8 @@ public class MyShell {
             }
         }
         pout.flush(); // Close the output stream after completing the command
-    }
-
+    } // todo: cat file1 | grep searchterm | lc still outputs line + line count
+    //todo: standalone grep command does not out put search term not found
     // Implement 'lc' command
     private static void lc(PipedInputStream pin, PipedOutputStream pout) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(pin));
@@ -247,5 +249,19 @@ public class MyShell {
             pout.write(histLine.getBytes());
         }
         pout.flush();
+    }
+
+    // Method to display welcome message
+    private static void printWelcomeMessage() {
+        System.out.println("\nWelcome to myShell!");
+        System.out.println("Type 'exit' to exit the shell.");
+        System.out.println("Type 'history' to view command history.");
+        System.out.println("Type '!n' to execute the nth command from history.");
+        System.out.println("Type 'cd <directory>' to change the current directory.");
+        System.out.println("Type 'ls' to list the files in the current directory.");
+        System.out.println("Type 'cat <file>' to display the contents of a file.");
+        System.out.println("Type 'grep <search term>' to search for a term in the output of a command.");
+        System.out.println("Type 'lc' to count the number of lines in the output of a command.");
+        System.out.println("Type 'pwd' to display the current directory.");
     }
 }

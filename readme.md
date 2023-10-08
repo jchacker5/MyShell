@@ -17,6 +17,7 @@ This project aims to develop a simple UNIX shell (command interpreter) in Java. 
 - `cd`: Change to another directory.
 - `exit`: Quit the command line.
 - `!n`: Execute a previous command from history.
+- `|`: Pipe the output of one command to another.
 
 ### How to Run
 
